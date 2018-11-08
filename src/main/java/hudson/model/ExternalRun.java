@@ -28,15 +28,17 @@ import hudson.util.DecodingStream;
 import hudson.util.DualOutputStream;
 import org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement;
 
-import javax.xml.stream.XMLInputFactory;
-import javax.xml.stream.XMLStreamException;
-import javax.xml.stream.XMLStreamReader;
+import com.fasterxml.jackson.jr.ob.JSON;
+//import javax.xml.stream.XMLInputFactory;
+//import javax.xml.stream.XMLStreamException;
+//import javax.xml.stream.XMLStreamReader;
 import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.InputStream;
 import java.io.Reader;
 import java.util.zip.GZIPInputStream;
+import java.util.Map;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
@@ -113,54 +115,30 @@ public class ExternalRun extends Run<ExternalJob,ExternalRun> {
     public void acceptRemoteSubmission(final Reader in) throws IOException {
         final long[] duration = new long[1];
         execute(new RunExecution() {
-            private String elementText(XMLStreamReader r) throws XMLStreamException {
-                StringBuilder buf = new StringBuilder();
-                while (true) {
-                    int type = r.next();
-                    if (type == CHARACTERS || type == CDATA) {
-                        buf.append(r.getTextCharacters(), r.getTextStart(), r.getTextLength());
-                    }
-                    else {
-                        return buf.toString();
-                    }
-                }
-            }
-
             @SuppressFBWarnings(value = {"OS_OPEN_STREAM", "DM_DEFAULT_ENCODING"}, justification = "Logger will be handled upstream")
             public Result run(BuildListener listener) throws Exception {
                 PrintStream logger = new PrintStream(new DecodingStream(listener.getLogger()));
 
-                XMLInputFactory xif = XMLInputFactory.newInstance();
-                XMLStreamReader p = xif.createXMLStreamReader(in);
+                Map<String, Object> jsonEvent = JSON.std.mapFrom(in);
 
-                p.nextTag();    // get to the <run>
-                p.nextTag();    // get to the <log>
+                //p.nextTag();    // get to the <run>
+                //p.nextTag();    // get to the <log>
 
-                setCharset(p.getAttributeValue(null,"content-encoding"));
-                while (p.next() != END_ELEMENT) {
-                    int type = p.getEventType();
-                    if (type == CHARACTERS || type == CDATA) {
-                        logger.print(p.getText());
-                    }
-                }
-                p.nextTag(); // get to <result>
+                //setCharset(p.getAttributeValue(null,"content-encoding"));
+                //while (p.next() != END_ELEMENT) {
+                //    int type = p.getEventType();
+                //    if (type == CHARACTERS || type == CDATA) {
+                //        logger.print(p.getText());
+                //    }
+                //}
+                //p.nextTag(); // get to <result>
 
-                Result r = Integer.parseInt(elementText(p)) == 0 ? Result.SUCCESS : Result.FAILURE;
+                Result r = Integer.valueOf(jsonEvent.get("result").toString()) == 0 ? Result.SUCCESS : Result.FAILURE;
 
-                do {
-                    p.nextTag();
-                    if (p.getEventType() == START_ELEMENT){
-                        if (p.getLocalName().equals("duration")) {
-                            duration[0] = Long.parseLong(elementText(p));
-                        }
-                        else if (p.getLocalName().equals("displayName")) {
-                            setDisplayName(p.getElementText());
-                        }
-                        else if(p.getLocalName().equals("description")) {
-                            setDescription(p.getElementText());
-                        }
-                    }
-                } while (!(p.getEventType() == END_ELEMENT && p.getLocalName().equals("run")));
+                //##PDS Allow for optionals.
+                duration[0] = Integer.valueOf(jsonEvent.get("duration").toString());
+                setDisplayName(jsonEvent.get("displayName").toString());
+                setDescription(jsonEvent.get("description").toString());
 
                 return r;
             }
