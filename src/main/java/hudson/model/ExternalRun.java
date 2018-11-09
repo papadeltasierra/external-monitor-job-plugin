@@ -29,6 +29,7 @@ import hudson.util.DualOutputStream;
 import org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement;
 
 import com.fasterxml.jackson.jr.ob.JSON;
+import com.fasterxml.jackson.jr.ob.JSONObjectException;
 //import javax.xml.stream.XMLInputFactory;
 //import javax.xml.stream.XMLStreamException;
 //import javax.xml.stream.XMLStreamReader;
@@ -39,6 +40,8 @@ import java.io.InputStream;
 import java.io.Reader;
 import java.util.zip.GZIPInputStream;
 import java.util.Map;
+import java.util.logging.Logger;
+import java.util.logging.Level;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
@@ -55,6 +58,9 @@ public class ExternalRun extends Run<ExternalJob,ExternalRun> {
      * @param owner
      * @param runDir
      */
+
+    private static final Logger LOGGER = Logger.getLogger( ExternalRun.class.getName() );
+
     ExternalRun(ExternalJob owner, File runDir) throws IOException {
         super(owner,runDir);
     }
@@ -116,10 +122,17 @@ public class ExternalRun extends Run<ExternalJob,ExternalRun> {
         final long[] duration = new long[1];
         execute(new RunExecution() {
             @SuppressFBWarnings(value = {"OS_OPEN_STREAM", "DM_DEFAULT_ENCODING"}, justification = "Logger will be handled upstream")
-            public Result run(BuildListener listener) throws Exception {
-                PrintStream logger = new PrintStream(new DecodingStream(listener.getLogger()));
+            public Result run(BuildListener listener) throws IOException, JSONObjectException {
 
+                LOGGER.log(Level.INFO, "processing received JSON");
+
+                //##PDS what was this for?
+                //PrintStream logger = new PrintStream(new DecodingStream(listener.getLogger()));
+
+                LOGGER.log(Level.INFO, "received JSON 1");
                 Map<String, Object> jsonEvent = JSON.std.mapFrom(in);
+                LOGGER.log(Level.INFO, "received JSON 2");
+                //LOGGER.log(Level.FINER, "received JSON:\n{0}", jsonEvent.toString());
 
                 //p.nextTag();    // get to the <run>
                 //p.nextTag();    // get to the <log>
@@ -133,13 +146,30 @@ public class ExternalRun extends Run<ExternalJob,ExternalRun> {
                 //}
                 //p.nextTag(); // get to <result>
 
-                Result r = Integer.valueOf(jsonEvent.get("result").toString()) == 0 ? Result.SUCCESS : Result.FAILURE;
+                LOGGER.log(Level.FINEST, "A finest log");
+                LOGGER.log(Level.INFO, "result? " + jsonEvent.toString());
+                LOGGER.log(Level.INFO, "result? " + jsonEvent.containsKey("result"));
+                LOGGER.log(Level.INFO, "result? " + jsonEvent.get("result").toString());
+                //LOGGER.log(Level.FINEST, "result? {0}", new Object[]{jsonEvent.get("result")});
+                Result r = (Integer)jsonEvent.get("result") == 0 ? Result.SUCCESS : Result.FAILURE;
 
                 //##PDS Allow for optionals.
-                duration[0] = Integer.valueOf(jsonEvent.get("duration").toString());
-                setDisplayName(jsonEvent.get("displayName").toString());
-                setDescription(jsonEvent.get("description").toString());
+                if (jsonEvent.containsKey("duration")) {
+                    LOGGER.log(Level.INFO, "duration present: " + jsonEvent.get("duration").getClass().getName().toString());
+                    LOGGER.log(Level.INFO, "duration present: " + jsonEvent.get("duration").toString());
+                    Integer durInt = (Integer)jsonEvent.get("duration");
+                    duration[0] = durInt.longValue();
+                }
+                if (jsonEvent.containsKey("displayName")) {
+                    LOGGER.log(Level.INFO, "displayName present: " + jsonEvent.get("displayName").toString());
+                    setDisplayName(jsonEvent.get("displayName").toString());
+                }
+                if (jsonEvent.containsKey("description")) {
+                    LOGGER.log(Level.INFO, "description present");
+                    setDescription(jsonEvent.get("description").toString());
+                }
 
+                LOGGER.log(Level.INFO, "JSON - done");
                 return r;
             }
 

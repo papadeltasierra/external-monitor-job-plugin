@@ -18,14 +18,16 @@ public class ExternalRunTest extends HudsonTestCase {
         ExternalJob p = hudson.createProject(ExternalJob.class, "test");
         ExternalRun b = p.newBuild();
         b.acceptRemoteSubmission(new StringReader(
-            "<run><log content-encoding='UTF-8'>AAAAAAAA</log><result>0</result><duration>100</duration></run>"
+            //"<run><log content-encoding='UTF-8'>AAAAAAAA</log><result>0</result><duration>100</duration></run>"
+            "{\"run\": {\"log content-encoding='UTF-8'\":\"AAAAAAAA\"},\"result\":0,\"duration\":100}"
         ));
         assertEquals(b.getResult(),Result.SUCCESS);
         assertEquals(b.getDuration(),100);
 
         b = p.newBuild();
         b.acceptRemoteSubmission(new StringReader(
-            "<run><log content-encoding='UTF-8'>AAAAAAAA</log><result>1</result>"
+            //"<run><log content-encoding='UTF-8'>AAAAAAAA</log><result>1</result>"
+            "{\"run\":{\"log content-encoding='UTF-8'\":\"AAAAAAAA\"},\"result\":1}"
         ));
         assertEquals(b.getResult(),Result.FAILURE);
     }
@@ -35,7 +37,8 @@ public class ExternalRunTest extends HudsonTestCase {
         ExternalJob p = jenkins.createProject(ExternalJob.class, createUniqueProjectName());
         ExternalRun b = p.newBuild();
         b.acceptRemoteSubmission(new StringReader(
-            "<run><log content-encoding='UTF-8'></log><result>0</result><duration>1</duration></run>"
+            //"<run><log content-encoding='UTF-8'></log><result>0</result><duration>1</duration></run>"
+            "{\"run\":\"log content-encoding='UTF-8'\",\"result\":0},\"duration\":1}"
         ));
 
         assertGetEnvironmentWorks(b);
