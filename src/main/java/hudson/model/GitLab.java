@@ -28,30 +28,69 @@ import hudson.ExtensionPoint;
 //import hudson.model.RunMap.Constructor;
 //import hudson.util.AlternativeUiTextProvider;
 //import java.io.File;
-//import java.io.IOException;
-//import javax.servlet.ServletException;
+import java.io.IOException;
+import javax.servlet.ServletException;
 //import javax.servlet.http.HttpServletResponse;
 //import jenkins.model.Jenkins;
 //import org.jenkinsci.plugins.gitlabpipelinejob.Messages;
+import org.kohsuke.stapler.HttpResponses;
+import org.kohsuke.stapler.Stapler;
 import org.kohsuke.stapler.StaplerProxy;
-//import org.kohsuke.stapler.StaplerRequest;
-//import org.kohsuke.stapler.StaplerResponse;
+import org.kohsuke.stapler.StaplerRequest;
+import org.kohsuke.stapler.StaplerResponse;
 
-@Extension
-public class GitLab implements ExtensionPoint, RootAction, StaplerProxy {
+public class GitLab implements RootAction, StaplerProxy {
+    /*
+     * Return the icon that gets displayed when the .../gitlab page is displayed.
+     */
     public String getIconFileName() {
         return null;
     }
 
+    /*
+     * This is not an action that appears in the Jenkins menus.
+     */
     public String getDisplayName() {
-        return "GitLab";
+        return null;
     }
 
+    /* 
+     * The relative position below the Jenkins root.
+     */
     public String getUrlName() {
+        //##PDS should have common/shared function.
         return "gitlab";
     }
 
-    public void doApi() {
-
+    @Override
+    public Object getTarget() {
+        StaplerRequest req = Stapler.getCurrentRequest();
+        if (req.getRestOfPath().length()==0) {
+            if ("GET".equals(req.getMethod())) {
+                return this;
+            } else {
+                throw HttpResponses.forbidden();
+            }
+        } else {
+            return this;
+        }
     }
+
+    /*
+    public void doPipeline(StaplerRequest req, StaplerResponse rsp) throws ServletException, IOException {
+        final Jenkins jenkins = Jenkins.getActiveInstance();
+        jenkins.checkPermission(Jenkins.READ);
+
+        // Strip trailing slash
+        final String commandName = req.getRestOfPath().substring(1);
+        CLICommand command = CLICommand.clone(commandName);
+        if (command == null) {
+            rsp.sendError(HttpServletResponse.SC_NOT_FOUND, "No such command");
+            return;
+        }
+
+        req.setAttribute("command", command);
+        req.getView(this, "command.jelly").forward(req, rsp);
+    }
+    */
 }
