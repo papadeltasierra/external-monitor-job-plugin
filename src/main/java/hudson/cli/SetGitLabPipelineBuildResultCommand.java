@@ -1,8 +1,8 @@
 package hudson.cli;
 
 import hudson.Extension;
-import hudson.model.ExternalJob;
-import hudson.model.ExternalRun;
+import hudson.model.GitLabPipelineJob;
+import hudson.model.GitLabPipelineRun;
 import hudson.model.Run;
 import hudson.model.TopLevelItem;
 import org.kohsuke.args4j.Option;
@@ -14,8 +14,10 @@ import org.kohsuke.args4j.Option;
  * @author David Ostrovsky
  */
 @Extension
-public class SetExternalBuildResultCommand extends CLICommand {
+public class SetGitLabPipelineBuildResultCommand extends CLICommand {
 
+
+    //##PDS We want to either change or retire this.
     @Override
     public String getShortDescription() {
         return "Set external monitor job result.";
@@ -40,7 +42,7 @@ public class SetExternalBuildResultCommand extends CLICommand {
     public boolean dumpBuildNumber;
 
     /**
-     * Entry point to the SetExternalBuildResultCommand command.
+     * Entry point to the SetGitLabPipelineBuildResultCommand command.
      *
      * <p>
      * Schedule an external build, put passed build result.
@@ -54,7 +56,7 @@ public class SetExternalBuildResultCommand extends CLICommand {
      * @throws Exception
      */
     protected int run() throws Exception {
-        ExternalRun run = ((ExternalJob) job).newBuild();
+        GitLabPipelineRun run = ((GitLabPipelineJob) job).newBuild();
         run.checkPermission(Run.UPDATE);
 
         if ("-".equals(log)) {

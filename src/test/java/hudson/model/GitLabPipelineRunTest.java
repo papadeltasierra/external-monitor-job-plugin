@@ -13,10 +13,10 @@ import java.io.StringReader;
 /**
  * @author Kohsuke Kawaguchi
  */
-public class ExternalRunTest extends HudsonTestCase {
+public class GitLabPipelineRunTest extends HudsonTestCase {
     public void test1() throws Exception {
-        ExternalJob p = hudson.createProject(ExternalJob.class, "test");
-        ExternalRun b = p.newBuild();
+        GitLabPipelineJob p = hudson.createProject(GitLabPipelineJob.class, "test");
+        GitLabPipelineRun b = p.newBuild();
         b.acceptRemoteSubmission(new StringReader(
             //"<run><log content-encoding='UTF-8'>AAAAAAAA</log><result>0</result><duration>100</duration></run>"
             "{\"run\": {\"log content-encoding='UTF-8'\":\"AAAAAAAA\"},\"result\":0,\"duration\":100}"
@@ -33,9 +33,9 @@ public class ExternalRunTest extends HudsonTestCase {
     }
 
     @Bug(11592)
-    public void testExternalJob() throws Exception {
-        ExternalJob p = jenkins.createProject(ExternalJob.class, createUniqueProjectName());
-        ExternalRun b = p.newBuild();
+    public void testGitLabPipelineJob() throws Exception {
+        GitLabPipelineJob p = jenkins.createProject(GitLabPipelineJob.class, createUniqueProjectName());
+        GitLabPipelineRun b = p.newBuild();
         b.acceptRemoteSubmission(new StringReader(
             //"<run><log content-encoding='UTF-8'></log><result>0</result><duration>1</duration></run>"
             "{\"run\":\"log content-encoding='UTF-8'\",\"result\":0},\"duration\":1}"

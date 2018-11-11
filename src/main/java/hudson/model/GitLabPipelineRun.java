@@ -48,20 +48,20 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 import static javax.xml.stream.XMLStreamConstants.*;
 
 /**
- * {@link Run} for {@link ExternalJob}.
+ * {@link Run} for {@link GitLabPipelineJob}.
  * 
  * @author Kohsuke Kawaguchi
  */
-public class ExternalRun extends Run<ExternalJob,ExternalRun> {
+public class GitLabPipelineRun extends Run<GitLabPipelineJob,GitLabPipelineRun> {
     /**
      * Loads a run from a log file.
      * @param owner
      * @param runDir
      */
 
-    private static final Logger LOGGER = Logger.getLogger( ExternalRun.class.getName() );
+    private static final Logger LOGGER = Logger.getLogger( GitLabPipelineRun.class.getName() );
 
-    ExternalRun(ExternalJob owner, File runDir) throws IOException {
+    GitLabPipelineRun(GitLabPipelineJob owner, File runDir) throws IOException {
         super(owner,runDir);
     }
 
@@ -69,7 +69,7 @@ public class ExternalRun extends Run<ExternalJob,ExternalRun> {
      * Creates a new run.
      * @param project
      */
-    ExternalRun(ExternalJob project) throws IOException {
+    GitLabPipelineRun(GitLabPipelineJob project) throws IOException {
         super(project);
     }
 

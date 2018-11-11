@@ -31,7 +31,7 @@ import java.io.IOException;
 import javax.servlet.ServletException;
 import javax.servlet.http.HttpServletResponse;
 import jenkins.model.Jenkins;
-import org.jenkinsci.plugins.externalmonitorjob.Messages;
+import org.jenkinsci.plugins.gitlabpipelinejob.Messages;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
 
@@ -42,21 +42,21 @@ import org.kohsuke.stapler.StaplerResponse;
  *
  * @author Kohsuke Kawaguchi
  */
-public class ExternalJob extends ViewJob<ExternalJob,ExternalRun> implements TopLevelItem {
+public class GitLabPipelineJob extends ViewJob<GitLabPipelineJob,GitLabPipelineRun> implements TopLevelItem {
 
-    public ExternalJob(String name) {
+    public GitLabPipelineJob(String name) {
         this(Jenkins.getInstance(),name);
     }
 
-    public ExternalJob(ItemGroup parent, String name) {
+    public GitLabPipelineJob(ItemGroup parent, String name) {
         super(parent,name);
     }
 
     @Override
     protected void reload() {
-        this.runs.load(this,new Constructor<ExternalRun>() {
-            public ExternalRun create(File dir) throws IOException {
-                return new ExternalRun(ExternalJob.this,dir);
+        this.runs.load(this,new Constructor<GitLabPipelineRun>() {
+            public GitLabPipelineRun create(File dir) throws IOException {
+                return new GitLabPipelineRun(GitLabPipelineJob.this,dir);
             }
         });
     }
@@ -65,13 +65,13 @@ public class ExternalJob extends ViewJob<ExternalJob,ExternalRun> implements Top
      * Creates a new build of this project for immediate execution.
      *
      * Needs to be synchronized so that two {@link #newBuild()} invocations serialize each other.
-     * @return ExternalRun   a reference to the new build
+     * @return GitLabPipelineRun   a reference to the new build
      * @throws IOException
      */
-    public synchronized ExternalRun newBuild() throws IOException {
+    public synchronized GitLabPipelineRun newBuild() throws IOException {
         checkPermission(AbstractProject.BUILD);
 
-        ExternalRun run = new ExternalRun(this);
+        GitLabPipelineRun run = new GitLabPipelineRun(this);
         _getRuns();
         runs.put(run);
         return run;
@@ -91,7 +91,7 @@ public class ExternalJob extends ViewJob<ExternalJob,ExternalRun> implements Top
      * @param rsp   Remote response
      */
     public void doPostBuildResult( StaplerRequest req, StaplerResponse rsp ) throws IOException, ServletException {
-        ExternalRun run = newBuild();
+        GitLabPipelineRun run = newBuild();
         run.acceptRemoteSubmission(req.getReader());
         rsp.setStatus(HttpServletResponse.SC_OK);
     }
@@ -105,12 +105,12 @@ public class ExternalJob extends ViewJob<ExternalJob,ExternalRun> implements Top
 
     @Override
     public String getPronoun() {
-        return AlternativeUiTextProvider.get(PRONOUN, this, Messages.ExternalJob_displayName());
+        return AlternativeUiTextProvider.get(PRONOUN, this, Messages.GitLabPipelineJob_displayName());
     }
 
     public static final class DescriptorImpl extends TopLevelItemDescriptor {
         public String getDisplayName() {
-            return Messages.ExternalJob_displayName();
+            return Messages.GitLabPipelineJob_displayName();
         }
 
         /**
@@ -132,7 +132,7 @@ public class ExternalJob extends ViewJob<ExternalJob,ExternalRun> implements Top
          * @return A string with the Item description.
          */
         public String getDescription() {
-            return Messages.ExternalJob_Description();
+            return Messages.GitLabPipelineJob_Description();
         }
 
         /**
@@ -146,8 +146,8 @@ public class ExternalJob extends ViewJob<ExternalJob,ExternalRun> implements Top
             return "plugin/external-monitor-job/images/:size/gitlabpipelinejob.png";
         }
 
-        public ExternalJob newInstance(ItemGroup parent, String name) {
-            return new ExternalJob(parent,name);
+        public GitLabPipelineJob newInstance(ItemGroup parent, String name) {
+            return new GitLabPipelineJob(parent,name);
         }
     }
 }
