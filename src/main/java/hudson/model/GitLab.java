@@ -29,6 +29,7 @@ import hudson.ExtensionPoint;
 //import hudson.util.AlternativeUiTextProvider;
 //import java.io.File;
 import java.io.IOException;
+import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
 //import javax.servlet.http.HttpServletResponse;
 //import jenkins.model.Jenkins;
@@ -39,7 +40,10 @@ import org.kohsuke.stapler.StaplerProxy;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
 
+
+@Extension
 public class GitLab implements RootAction, StaplerProxy {
+    private static final String URL_NAME="gitlab";
     /*
      * Return the icon that gets displayed when the .../gitlab page is displayed.
      */
@@ -62,16 +66,39 @@ public class GitLab implements RootAction, StaplerProxy {
         return "gitlab";
     }
 
+    public void doPipeline(StaplerRequest req,
+                           StaplerResponse rsp)
+                    throws ServletException,
+                           IOException {
+        //req.getView(this, "pipeline.jelly").forward(req, rsp);
+        //rsp.sendError(444, "Bog off!");
+        //Do nothing and a 200 response results.
+    }
+ /*
+    #@Override
+    #public boolean process(final StaplerRequest request, final StaplerResponse response, final FilterChain chain)
+    #        throws IOException, ServletException {
+#
+#        final String pathInfo = request.getPathInfo();
+#        if (pathInfo != null && pathInfo.startsWith("/" + URL_NAME + "/")) {
+#            chain.doFilter(request, response);
+#            return true;
+#        }
+#        return false;
+#    }
+*/
     @Override
     public Object getTarget() {
         StaplerRequest req = Stapler.getCurrentRequest();
-        if (req.getRestOfPath().length()==0) {
-            if ("GET".equals(req.getMethod())) {
+        if (req.getRestOfPath().length()!=0) {
+            if ("POST".equals(req.getMethod())) {
                 return this;
             } else {
-                throw HttpResponses.forbidden();
+                //throw HttpResponses.forbidden();
+                throw HttpResponses.errorWithoutStack(403, "Bog off too!");
             }
         } else {
+            //##PDS Why would we allow this?  Surely we want to return fail?
             return this;
         }
     }

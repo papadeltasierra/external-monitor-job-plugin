@@ -29,7 +29,7 @@ THE SOFTWARE.
       <h1>REST API</h1>
 
       <p>
-        Many objects of Jenkins provide the remote access API. They are available
+        GITLAB!!! Many objects of Jenkins provide the remote access API. They are available
         at <tt>${rootURL}/.../api/</tt> where "..." portion is the object for
         which you'd like to access.
       </p>
