@@ -44,6 +44,19 @@ import org.kohsuke.stapler.StaplerResponse;
  */
 public class GitLabPipelineJob extends ViewJob<GitLabPipelineJob,GitLabPipelineRun> implements TopLevelItem {
 
+    /*
+     * Override default storage and methods which use 'name'.
+     */
+    private String displayName = "This is the first value";
+
+    public String getDisplayName() {
+        return this.displayName;
+    }
+
+    public void setDisplayName(String displayName) {
+        this.displayName = displayName;
+    }
+   
     public GitLabPipelineJob(String name) {
         this(Jenkins.getInstance(),name);
     }
@@ -72,7 +85,20 @@ public class GitLabPipelineJob extends ViewJob<GitLabPipelineJob,GitLabPipelineR
         checkPermission(AbstractProject.BUILD);
 
         GitLabPipelineRun run = new GitLabPipelineRun(this);
+
+
+        // Multibranch Pipeline support!  But this does not 'look' like a normal job so let's
+        // ignore it for now.
+        // pipeline => stages => stage
+        //
+        // Jenkins works on...
+        // Job/Project -> Multiple Steps -> Build (result of one run)
+        // What is an action?  Seems to be something that we can modify but...
+
+        // This returns a sorted map of all runs from a Job.  I wonder if this is to ensure
+        // that our new run is correctly in the list?
         _getRuns();
+
         runs.put(run);
         return run;
     }
@@ -105,12 +131,14 @@ public class GitLabPipelineJob extends ViewJob<GitLabPipelineJob,GitLabPipelineR
 
     @Override
     public String getPronoun() {
-        return AlternativeUiTextProvider.get(PRONOUN, this, Messages.GitLabPipelineJob_displayName());
+        return AlternativeUiTextProvider.get(PRONOUN, this, Messages.GitLabPipelineJob_DisplayName());
     }
 
     public static final class DescriptorImpl extends TopLevelItemDescriptor {
+
+
         public String getDisplayName() {
-            return Messages.GitLabPipelineJob_displayName();
+            return Messages.GitLabPipelineJob_DisplayName();
         }
 
         /**

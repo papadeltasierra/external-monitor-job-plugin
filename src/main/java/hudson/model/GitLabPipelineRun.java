@@ -78,6 +78,22 @@ public class GitLabPipelineRun extends Run<GitLabPipelineJob,GitLabPipelineRun> 
      * record the log and its exit code, then call it a build.
      * @param cmd   command to run as a build
      */
+
+
+    // ## PDS We need to override run() and execute() and stop them doing nasty things!
+    //protected final void execute(@Nonnull RunExecution job) {
+    //}
+
+    // ##PDS Make sure that nobody can 'build' our job manually.
+
+    // ##PDS Call setResult() to update results but we have to change to State.BUILDING 
+    // ##    via onStartBuilding().
+    // ##    State.NOT_STARTED, BUIDING, POST_PRODUCTION (only for real builds), COMPLETED.
+
+    // ## Set results using setResult (must be building).
+    // Result.ABORTED, FAILURE, NOT_BUILT, UNSTABLE (there were non-fatal error), SUCCESS
+
+
     public void run(final String[] cmd) {
         execute(new RunExecution() {
             public Result run(BuildListener listener) throws Exception {
@@ -94,6 +110,9 @@ public class GitLabPipelineRun extends Run<GitLabPipelineJob,GitLabPipelineRun> 
             }
         });
     }
+
+
+
 
     private void setCharset(String c) { // JENKINS-14107
         charset = c;

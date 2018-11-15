@@ -40,6 +40,7 @@ import org.kohsuke.stapler.StaplerProxy;
 import org.kohsuke.stapler.StaplerRequest;
 import org.kohsuke.stapler.StaplerResponse;
 
+// ##PDS Add logging, especially of errors.
 
 @Extension
 public class GitLab implements RootAction, StaplerProxy {
@@ -62,62 +63,70 @@ public class GitLab implements RootAction, StaplerProxy {
      * The relative position below the Jenkins root.
      */
     public String getUrlName() {
-        //##PDS should have common/shared function.
         return "gitlab";
     }
 
-    public void doPipeline(StaplerRequest req,
-                           StaplerResponse rsp)
-                    throws ServletException,
-                           IOException {
+    public void doPipeline(StaplerRequest req, StaplerResponse rsp)
+            throws ServletException, IOException {
+        // From this point we always return 200.
+        new GitLabWebhookPipeline().process(req);
+
         //req.getView(this, "pipeline.jelly").forward(req, rsp);
         //rsp.sendError(444, "Bog off!");
         //Do nothing and a 200 response results.
     }
- /*
-    #@Override
-    #public boolean process(final StaplerRequest request, final StaplerResponse response, final FilterChain chain)
-    #        throws IOException, ServletException {
-#
-#        final String pathInfo = request.getPathInfo();
-#        if (pathInfo != null && pathInfo.startsWith("/" + URL_NAME + "/")) {
-#            chain.doFilter(request, response);
-#            return true;
-#        }
-#        return false;
-#    }
-*/
+
+    /*
+     * As required, these functions will support the other GitLab webhook
+     * events.  For now we do nothing which results in a 200 response
+     * being returned.
+     */
+    public void doPush(StaplerRequest req, StaplerResponse rsp)
+            throws ServletException, IOException {
+    }
+
+    public void doTag(StaplerRequest req, StaplerResponse rsp)
+            throws ServletException, IOException {
+    }
+
+    public void doComment(StaplerRequest req, StaplerResponse rsp)
+            throws ServletException, IOException {
+    }
+
+    public void doConfidentialComment(StaplerRequest req, StaplerResponse rsp)
+            throws ServletException, IOException {
+    }
+
+    public void doIssues(StaplerRequest req, StaplerResponse rsp)
+            throws ServletException, IOException {
+    }
+
+    public void doMergeRequest(StaplerRequest req, StaplerResponse rsp)
+            throws ServletException, IOException {
+    }
+
+    public void doWikiPage(StaplerRequest req, StaplerResponse rsp)
+            throws ServletException, IOException {
+    }
+
+    public void doBuild(StaplerRequest req, StaplerResponse rsp)
+            throws ServletException, IOException {
+    }
+
     @Override
     public Object getTarget() {
         StaplerRequest req = Stapler.getCurrentRequest();
         if (req.getRestOfPath().length()!=0) {
             if ("POST".equals(req.getMethod())) {
+                // Pass long to the appropriate handler for the next page.
                 return this;
             } else {
-                //throw HttpResponses.forbidden();
-                throw HttpResponses.errorWithoutStack(403, "Bog off too!");
+                // ##PDS change this for languages.
+                throw HttpResponses.errorWithoutStack(403, "POST method only!");
             }
         } else {
-            //##PDS Why would we allow this?  Surely we want to return fail?
+            // This causes us to return the webpage defined in resources.
             return this;
         }
     }
-
-    /*
-    public void doPipeline(StaplerRequest req, StaplerResponse rsp) throws ServletException, IOException {
-        final Jenkins jenkins = Jenkins.getActiveInstance();
-        jenkins.checkPermission(Jenkins.READ);
-
-        // Strip trailing slash
-        final String commandName = req.getRestOfPath().substring(1);
-        CLICommand command = CLICommand.clone(commandName);
-        if (command == null) {
-            rsp.sendError(HttpServletResponse.SC_NOT_FOUND, "No such command");
-            return;
-        }
-
-        req.setAttribute("command", command);
-        req.getView(this, "command.jelly").forward(req, rsp);
-    }
-    */
 }
