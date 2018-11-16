@@ -64,10 +64,10 @@ public class GitLabWebhook {
     protected Map<String, Object> parseJsonRequest(StaplerRequest req) 
         throws IOException, JSONObjectException {
 
-        LOGGER.log(Level.INFO, "received JSON 1");
-        Map<String, Object> jsonEvent = JSON.std.mapFrom(req.getInputStream());
+        LOGGER.log(Level.INFO, "Parsing received JSON");
+        Map<String, Object> jsonEvent = JSON.std.mapFrom(req.getReader());
 
-        LOGGER.log(Level.INFO, "JSON - done");
+        LOGGER.log(Level.INFO, "JSON parsed OK");
         return jsonEvent;
     }
 }

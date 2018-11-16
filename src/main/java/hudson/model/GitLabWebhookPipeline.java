@@ -43,7 +43,8 @@ import java.io.IOException;
 import java.util.Map;
 import java.util.logging.Logger;
 import java.util.logging.Level;
-//import java.hudson.model.GitLabWebhook;
+import jenkins.model.Jenkins;
+//import java.hudson.model.Job;
 import org.kohsuke.stapler.StaplerRequest;
 import java.lang.Object;
 import java.lang.String;
@@ -68,11 +69,53 @@ public class GitLabWebhookPipeline extends GitLabWebhook {
     		throws IOException, JSONObjectException {
         Map<String, Object> pipeline = parseJsonRequest(req);
 
+        // ##TEST Bad Json, all missnig fields..
         // Start by identifying the GitLab project, which maps to a Jenkins Job
-        Map<String, Object> project = (Map<String, Object>)pipeline.get("project");
-        String name = (String)project.get("name");
+        LOGGER.log(Level.INFO, "Parsing JSON");
 
-        // Find this job.
+        // Check this really is a pipeline request.
+        // ##TEST non-pippeline job or missing object_kind.
+        String jsonObjKind = (String)pipeline.get("object_kind");
+        if (jsonObjKind.equals("pipeline")) {
+            LOGGER.log(Level.INFO, "Really pipeline event");
+            // ##PDS Make all these string attribute names into a enum/class.
+            // The ref is either 'master' or a branch name.
+            Map<String, Object> jsonProject =
+                (Map<String, Object>)pipeline.get("project");
+            String name = (String)jsonProject.get("name");
+
+            Map<String, Object> jsonObjAttrs =
+                (Map<String, Object>)pipeline.get("object_attributes");
+            String ref = (String)jsonObjAttrs.get("ref");
+
+            LOGGER.log(Level.INFO, "GitLab Project name: " + name);
+            LOGGER.log(Level.INFO, "GitLab Project ref: " + ref);
+
+            /*
+             * We construct the project name from the GitLab project name plus
+             * the GitLab master/branch name with many characters such as '/'
+             * converted to underscores.
+             */
+            String project = name + "_" + ref;
+
+            // ##TEST Various string strings
+            project = project.replaceAll("[^-0-9a-zA-Z_]", "_");
+            LOGGER.log(Level.INFO, "Jenkins Project: " + project);
+
+            /*
+             * Now we lookup the project to see if it exists because if not then we
+             * can give up and go home.
+             */
+            // TEST - No matching name, wrong Job type.
+            Job gitLabPipelineJob = (Job)Jenkins.getInstance().getItem(project);
+            if (gitLabPipelineJob instanceof GitLabPipelineJob) {
+                LOGGER.log(Level.INFO, "Found a pipeline job");
+                GitLabPipelineJob glpj = (GitLabPipelineJob)gitLabPipelineJob;
+                glpj.pipelineRequest(pipeline);
+            }
+            // Find this job.
+        } else {
+            LOGGER.log(Level.WARNING, "Unexpected object_kind: " + jsonObjKind);
+        }
     }
-
 }

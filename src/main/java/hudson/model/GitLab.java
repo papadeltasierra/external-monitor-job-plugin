@@ -31,6 +31,9 @@ import hudson.ExtensionPoint;
 import java.io.IOException;
 import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
+import java.util.logging.Logger;
+import java.util.logging.Level;
+
 //import javax.servlet.http.HttpServletResponse;
 //import jenkins.model.Jenkins;
 //import org.jenkinsci.plugins.gitlabpipelinejob.Messages;
@@ -44,7 +47,16 @@ import org.kohsuke.stapler.StaplerResponse;
 
 @Extension
 public class GitLab implements RootAction, StaplerProxy {
+
+    private static final Logger LOGGER = Logger.getLogger( GitLab.class.getName() );
+
     private static final String URL_NAME="gitlab";
+
+    // ##PDS just a hook for logging.
+    void GitLab() {
+        LOGGER.setLevel(Level.INFO);
+    }
+
     /*
      * Return the icon that gets displayed when the .../gitlab page is displayed.
      */
@@ -68,7 +80,10 @@ public class GitLab implements RootAction, StaplerProxy {
 
     public void doPipeline(StaplerRequest req, StaplerResponse rsp)
             throws ServletException, IOException {
-        // From this point we always return 200.
+
+        LOGGER.log(Level.INFO, "Handling Pipeline event");        
+        // ##PDS Try responding imediately here!
+        // rsp.sendError(200);
         new GitLabWebhookPipeline().process(req);
 
         //req.getView(this, "pipeline.jelly").forward(req, rsp);
@@ -81,36 +96,45 @@ public class GitLab implements RootAction, StaplerProxy {
      * events.  For now we do nothing which results in a 200 response
      * being returned.
      */
-    public void doPush(StaplerRequest req, StaplerResponse rsp)
+    public void doPush(StaplerRequest req, StaplerResponse rsp)  
             throws ServletException, IOException {
+        LOGGER.log(Level.INFO, "Push event ignored");
     }
 
     public void doTag(StaplerRequest req, StaplerResponse rsp)
             throws ServletException, IOException {
+        LOGGER.log(Level.INFO, "Tag event ignored");
     }
 
     public void doComment(StaplerRequest req, StaplerResponse rsp)
             throws ServletException, IOException {
+        LOGGER.log(Level.INFO, "Comment event ignored");
     }
 
     public void doConfidentialComment(StaplerRequest req, StaplerResponse rsp)
             throws ServletException, IOException {
+        LOGGER.log(Level.INFO, "Confidential Comment event ignored");
     }
 
     public void doIssues(StaplerRequest req, StaplerResponse rsp)
             throws ServletException, IOException {
+        LOGGER.log(Level.INFO, "Issues event ignored");
     }
 
     public void doMergeRequest(StaplerRequest req, StaplerResponse rsp)
             throws ServletException, IOException {
+        LOGGER.log(Level.INFO, "Merge Request event ignored");
     }
 
     public void doWikiPage(StaplerRequest req, StaplerResponse rsp)
             throws ServletException, IOException {
+        LOGGER.log(Level.INFO, "WiKi Page event ignored");
     }
 
     public void doBuild(StaplerRequest req, StaplerResponse rsp)
             throws ServletException, IOException {
+        // ##PDS Wonder what this does and should we care?        
+        LOGGER.log(Level.INFO, "Build event ignored");
     }
 
     @Override

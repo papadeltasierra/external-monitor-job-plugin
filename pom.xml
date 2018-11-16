@@ -22,10 +22,20 @@
   
   <properties>
     <jenkins.version>1.609.3</jenkins.version>
-    <java.level>6</java.level>
+    <!-- ##PDS ignore vintage Java -->
+    <!-- <java.level>6</java.level> -->
+    <java.level>7</java.level>
+    <!--
+    <jenkins.version>2.138</jenkins.version>
+    -->
   </properties>
 
   <repositories>
+    <!-- Added this because Jenkins 2.138 not found at later repo. -->
+    <repository>
+      <id>org.jenkins-ci.main</id>
+      <url>https://mvnrepository.com/artifact/org.jenkins-ci.main</url>
+    </repository>
     <repository>
       <id>repo.jenkins-ci.org</id>
       <url>https://repo.jenkins-ci.org/public/</url>
@@ -123,6 +133,7 @@
     </plugins>
   </reporting>
   <dependencies>
+    <!-- Adding Jackson-Jr JSON parsing. -->
     <dependency>
       <groupId>com.fasterxml.jackson.jr</groupId>
       <artifactId>jackson-jr-objects</artifactId>
