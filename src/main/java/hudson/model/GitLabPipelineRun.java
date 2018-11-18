@@ -24,8 +24,10 @@
 package hudson.model;
 
 import hudson.Proc;
+import hudson.Util;
 import hudson.util.DecodingStream;
 import hudson.util.DualOutputStream;
+import hudson.util.TimeUnit2;
 import org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement;
 
 import com.fasterxml.jackson.jr.ob.JSON;
@@ -44,6 +46,9 @@ import java.util.logging.Logger;
 import java.util.logging.Level;
 import javax.annotation.Nonnull;
 import javax.annotation.CheckForNull;
+import java.util.concurrent.locks.ReadWriteLock;
+import java.util.concurrent.locks.ReentrantReadWriteLock;
+import org.kohsuke.stapler.export.Exported;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
@@ -62,12 +67,13 @@ public class GitLabPipelineRun extends Run<GitLabPipelineJob,GitLabPipelineRun> 
      */
 
     private static final Logger LOGGER = Logger.getLogger( GitLabPipelineRun.class.getName() );
+    private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
     private String commit;
     private Executor executor;
     /* 
      * Hook the delete method and make sure that we remove ourselves from the
-     * parent job's commit Map.
+     * project job's commit Map.
      */
     public void delete() 
             throws java.io.IOException {
@@ -93,15 +99,6 @@ public class GitLabPipelineRun extends Run<GitLabPipelineJob,GitLabPipelineRun> 
         this.commit = commit;
         LOGGER.log(Level.INFO, "DEBUG: timestamp: " + timestamp);
         owner.commitMap.put(commit, this);
-    }
-
-    // ##PDS DEBUGGING - Call from????
-    public long getEstimatedDuration() {
-        long duration = super.getEstimatedDuration();
-
-        LOGGER.log(Level.INFO, "*** [Run] Estimated duration: " + duration);
-
-        return duration;
     }
 
     /**
@@ -226,19 +223,78 @@ public class GitLabPipelineRun extends Run<GitLabPipelineJob,GitLabPipelineRun> 
         return executor;
     }
 
+    /*************************************************************************
+     * The following is essentially copied from Executor.java.
+     ************************************************************************/
+    public long getElapsedTime() {
+        lock.readLock().lock();
+        try {
+            return System.currentTimeMillis() - getStartTimeInMillis();
+        } finally {
+            lock.readLock().unlock();
+        }
+    }
+
+    /**
+     * Gets the string that says how long since this build has started.
+     *
+     * @return
+     *      string like "3 minutes" "1 day" etc.
+     */
     public String getTimestampString() {
-        return "3 minutes";
+        return Util.getPastTimeString(getElapsedTime());
     }
 
-    public String getEstimatedRemainingTime() {
-        return "4 minutes";
-    }
-
-    public boolean isLikelyStuck() {
-        return false;
-    }
-
+        /**
+     * Returns the progress of the current build in the number between 0-100.
+     *
+     * @return -1
+     *      if it's impossible to estimate the progress.
+     */
+    @Exported
     public int getProgress() {
-        return 75;
+        long d;
+        lock.readLock().lock();
+        try {
+            d = project.getEstimatedDuration();
+        } finally {
+            lock.readLock().unlock();
+        }
+        if (d <= 0) {
+            return -1;
+        }
+
+        int num = (int) (getElapsedTime() * 100 / d);
+        if (num >= 100) {
+            num = 99;
+        }
+        return num;
+    }
+
+    /**
+     * Returns true if the current build is likely stuck.
+     *
+     * <p>
+     * This is a heuristics based approach, but if the build is suspiciously taking for a long time,
+     * this method returns true.
+     */
+    @Exported
+    public boolean isLikelyStuck() {
+        long d;
+        long elapsed;
+        lock.readLock().lock();
+        try {
+            elapsed = getElapsedTime();
+            d = project.getEstimatedDuration();
+        } finally {
+            lock.readLock().unlock();
+        }
+        if (d >= 0) {
+            // if it's taking 10 times longer than ETA, consider it stuck
+            return d * 10 < elapsed;
+        } else {
+            // if no ETA is available, a build taking longer than a day is considered stuck
+            return TimeUnit2.MILLISECONDS.toHours(elapsed) > 24;
+        }
     }
 }

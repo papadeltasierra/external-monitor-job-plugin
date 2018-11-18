@@ -178,6 +178,7 @@ public class GitLabPipelineJob extends ViewJob<GitLabPipelineJob,GitLabPipelineR
      * For now, disable the 'cancel X' becuase we can't cancel GitLab jobs.
      */
     public boolean hasAbortPermission() {
+        LOGGER.log(Level.INFO, "*** DEBUG *** No abort permission");
         return false;
     }
 
