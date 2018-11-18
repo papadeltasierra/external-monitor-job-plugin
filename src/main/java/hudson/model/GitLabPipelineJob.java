@@ -38,6 +38,7 @@ import java.util.logging.Logger;
 import java.util.logging.Level;
 import java.util.Map;
 import java.util.HashMap;
+import javax.annotation.CheckForNull;
 
 /**
  * Job that runs outside Hudson whose result is submitted to Hudson
@@ -56,33 +57,28 @@ public class GitLabPipelineJob extends ViewJob<GitLabPipelineJob,GitLabPipelineR
     // ##PDS accessors to add/delete us?
     public Map<String, GitLabPipelineRun> commitMap;
 
-    // ##PDS I think we can remove these now we know how DisplayName works.
     /*
-     * Override default storage and methods which use 'name'.
+     * Although we don't truly execute anything, we need to have a fake
+     * Executor because that is what Jenkis looks to in order to get progress
+     * information.
      */
-    /*
-    private String displayName;
+    private Executor executor;
 
-    public String getDisplayName() {
-        return this.displayName;
-    }
-
-    public void setDisplayName(String displayName) {
-        this.displayName = displayName;
-    }
-    */
-    /**
-     * This is intended to be used by the Job configuration pages where
-     * we want to return null if the display name is not set.
-     * @return The display name of this object or null if the display name is not
-     * set
-     *//*
-    public String getDisplayNameOrNull() {
-        return displayName;
-    }
-    */
     public GitLabPipelineJob(String name) {
         this(Jenkins.getInstance(),name);
+        LOGGER.log(Level.INFO, "Create job by name");
+    }
+
+    /**
+     * @deprecated as of 1.390
+     */
+    @Deprecated
+    protected GitLabPipelineJob(Jenkins parent, String name) {
+        super(parent,name);
+        LOGGER.log(Level.INFO, "Creating commitMap");
+        commitMap = new HashMap();
+        LOGGER.log(Level.INFO, "this: " + this.toString());
+        LOGGER.log(Level.INFO, "commitMap: " + commitMap.toString());
     }
 
     public GitLabPipelineJob(ItemGroup parent, String name) {
@@ -93,12 +89,51 @@ public class GitLabPipelineJob extends ViewJob<GitLabPipelineJob,GitLabPipelineR
         LOGGER.log(Level.INFO, "commitMap: " + commitMap.toString());
     }
 
+    /* ##PDS
+     * We will want to extend this if we allow a back-channel to cancel
+     * the job.
+     */
+    private GitLabPipelineRun findOrCreateRun(String commit)
+            throws IOException {
+
+        // ##PDS Do we need to worry about threading access here?
+        // ##TEST Find existing run, create new run, run has completed.
+        GitLabPipelineRun run = this.commitMap.get(commit);
+        if ((run != null) && (!run.isLogUpdated())) {
+            LOGGER.log(Level.INFO, "Found run has completed");
+            /*
+             * If the run has completed, then this is probably a 'restart'
+             * so we create a new Jenkins build and map the commit to this
+             * new build.
+             */
+            run = null;
+        }
+
+        if (run == null) {
+            // Get a new run.
+            LOGGER.log(Level.INFO, "Create a new run");
+            run = new GitLabPipelineRun(this, commit);
+            /* 
+             * These update internal state and add the new run into the list
+             * of runs that are visible no the dashboards.
+             */
+            _getRuns();
+            runs.put(run);
+        }
+        return run;
+    }
+
     /*
      * Process a received pipeline request.
      */
     public void pipelineRequest(Map<String, Object> jsonReq)
-            throws java.io.IOException {
+            throws java.io.IOException, ServletException {
         LOGGER.log(Level.INFO, "Job sees pipeline request");
+
+        // ##  TEST Test this.
+        checkPermission(AbstractProject.BUILD);
+
+        LOGGER.log(Level.INFO, "Build is permitted");
         // Extract the commit ID and look for an existing run.
         // ##TEST missing obj_attrs, sha
         Map<String, Object> jsonObjAttrs = 
@@ -109,19 +144,7 @@ public class GitLabPipelineJob extends ViewJob<GitLabPipelineJob,GitLabPipelineR
         LOGGER.log(Level.INFO, "this: " + this.toString());
         LOGGER.log(Level.INFO, "commitMap: " + this.commitMap.toString());
 
-        // ##PDS Do we need to worry abuot threading access here?
-        // ##TEST Find exiting run, create new run.
-        GitLabPipelineRun run = this.commitMap.get(commit);
-        if (run == null) {
-            // Get a new run.
-            LOGGER.log(Level.INFO, "This is a new job");
-            run = new GitLabPipelineRun(this, commit);
-            /* 
-             * I believe that this updates some internal state as there is no
-             * other reason to call this and ignore the result!
-             */
-            _getRuns();
-        }
+        GitLabPipelineRun run = findOrCreateRun(commit);
         run.process(jsonReq);
     }
 
@@ -136,6 +159,26 @@ public class GitLabPipelineJob extends ViewJob<GitLabPipelineJob,GitLabPipelineR
     @Override
     public String getPronoun() {
         return AlternativeUiTextProvider.get(PRONOUN, this, Messages.GitLabPipelineJob_DisplayName());
+    }
+
+    // ##PDS DEBUGGING - Called from Run...
+    public long getEstimatedDuration() {
+        long duration = super.getEstimatedDuration();
+
+        LOGGER.log(Level.INFO, "*** [Job] Estimated duration: " + duration);
+
+        return duration;
+    }
+
+    // ##PDS Can we delete using HTTP etc?  If so then we need to configure...
+    //       - GitLab job ID (or name/branch)
+    //       - URL to point at
+    //       -- possible security string.
+    /*
+     * For now, disable the 'cancel X' becuase we can't cancel GitLab jobs.
+     */
+    public boolean hasAbortPermission() {
+        return false;
     }
 
     public static final class DescriptorImpl extends TopLevelItemDescriptor {
@@ -197,5 +240,4 @@ public class GitLabPipelineJob extends ViewJob<GitLabPipelineJob,GitLabPipelineR
             }
         });
     }
-
 }

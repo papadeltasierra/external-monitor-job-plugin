@@ -40,6 +40,7 @@ import java.io.IOException;
 //import java.io.InputStream;
 //import java.io.Reader;
 //import java.util.zip.GZIPInputStream;
+import javax.servlet.ServletException;
 import java.util.Map;
 import java.util.logging.Logger;
 import java.util.logging.Level;
@@ -66,7 +67,7 @@ public class GitLabWebhookPipeline extends GitLabWebhook {
     private static final Logger LOGGER = Logger.getLogger( GitLabPipelineRun.class.getName() );
 
     public void process(StaplerRequest req) 
-    		throws IOException, JSONObjectException {
+    		throws IOException, JSONObjectException, ServletException {
         Map<String, Object> pipeline = parseJsonRequest(req);
 
         // ##TEST Bad Json, all missnig fields..
