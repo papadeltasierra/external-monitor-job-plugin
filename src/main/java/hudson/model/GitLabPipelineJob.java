@@ -48,6 +48,7 @@ import javax.annotation.CheckForNull;
  * @author Kohsuke Kawaguchi
  */
 public class GitLabPipelineJob extends ViewJob<GitLabPipelineJob,GitLabPipelineRun> implements TopLevelItem {
+//public class GitLabPipelineJob extends Job<GitLabPipelineJob,GitLabPipelineRun> implements TopLevelItem {
 
     private static final Logger LOGGER = Logger.getLogger( GitLabPipelineRun.class.getName() );
 
@@ -89,6 +90,7 @@ public class GitLabPipelineJob extends ViewJob<GitLabPipelineJob,GitLabPipelineR
         LOGGER.log(Level.INFO, "commitMap: " + commitMap.toString());
     }
 
+
     /* ##PDS
      * We will want to extend this if we allow a back-channel to cancel
      * the job.
@@ -115,7 +117,7 @@ public class GitLabPipelineJob extends ViewJob<GitLabPipelineJob,GitLabPipelineR
             run = new GitLabPipelineRun(this, commit);
             /* 
              * These update internal state and add the new run into the list
-             * of runs that are visible no the dashboards.
+             * of runs that are visible on the dashboards.
              */
             _getRuns();
             runs.put(run);
@@ -127,7 +129,7 @@ public class GitLabPipelineJob extends ViewJob<GitLabPipelineJob,GitLabPipelineR
      * Process a received pipeline request.
      */
     public void pipelineRequest(Map<String, Object> jsonReq)
-            throws java.io.IOException, ServletException {
+            throws java.io.IOException, ServletException, InterruptedException {
         LOGGER.log(Level.INFO, "Job sees pipeline request");
 
         // ##  TEST Test this.

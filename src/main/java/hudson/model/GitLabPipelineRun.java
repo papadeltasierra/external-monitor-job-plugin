@@ -25,10 +25,16 @@ package hudson.model;
 
 import hudson.Proc;
 import hudson.Util;
+import hudson.console.*;
 import hudson.util.DecodingStream;
 import hudson.util.DualOutputStream;
+import hudson.model.listeners.RunListener;
+import jenkins.model.PeepholePermalink;
+import hudson.model.queue.Executables;
+import hudson.security.ACL;
 import hudson.util.TimeUnit2;
 import org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement;
+import jenkins.model.Jenkins;
 
 import com.fasterxml.jackson.jr.ob.JSON;
 import com.fasterxml.jackson.jr.ob.JSONObjectException;
@@ -39,7 +45,11 @@ import java.io.File;
 import java.io.IOException;
 import java.io.PrintStream;
 import java.io.InputStream;
+import java.io.OutputStream;
+import java.io.FileOutputStream;
+import java.io.FileNotFoundException;
 import java.io.Reader;
+import java.nio.charset.Charset;
 import java.util.zip.GZIPInputStream;
 import java.util.Map;
 import java.util.logging.Logger;
@@ -48,7 +58,9 @@ import javax.annotation.Nonnull;
 import javax.annotation.CheckForNull;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
+import org.kohsuke.stapler.*;
 import org.kohsuke.stapler.export.Exported;
+import org.acegisecurity.Authentication;
 
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
@@ -60,6 +72,7 @@ import static javax.xml.stream.XMLStreamConstants.*;
  * @author Kohsuke Kawaguchi
  */
 public class GitLabPipelineRun extends Run<GitLabPipelineJob,GitLabPipelineRun> {
+//public class GitLabPipelineRun extends PeepholePermalink.RunListenerImpl {
     /**
      * Loads a run from a log file.
      * @param owner
@@ -70,7 +83,8 @@ public class GitLabPipelineRun extends Run<GitLabPipelineJob,GitLabPipelineRun> 
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
     private String commit;
-    private Executor executor;
+    private transient Executor executor;
+    private transient StreamBuildListener listener;
     /* 
      * Hook the delete method and make sure that we remove ourselves from the
      * project job's commit Map.
@@ -97,7 +111,7 @@ public class GitLabPipelineRun extends Run<GitLabPipelineJob,GitLabPipelineRun> 
         super(owner);
         LOGGER.log(Level.INFO, "Creating run for: " + commit);
         this.commit = commit;
-        LOGGER.log(Level.INFO, "DEBUG: timestamp: " + timestamp);
+        //LOGGER.log(Level.INFO, "DEBUG: timestamp: " + timestamp);
         owner.commitMap.put(commit, this);
     }
 
@@ -119,7 +133,8 @@ public class GitLabPipelineRun extends Run<GitLabPipelineJob,GitLabPipelineRun> 
      * cannot be set so we have only the Result that we can update.
      * We also handle appearing to 'jump in' at the start of a job.
      */ 
-    public void process(final Map<String, Object> jsonReq) {
+    public void process(final Map<String, Object> jsonReq)
+            throws FileNotFoundException, InterruptedException {
         //## TEST status / details_status d not exist.
         LOGGER.log(Level.INFO, "Process status change");
         Map<String, Object> jsonObjAttrs = (Map<String, Object>)jsonReq.get("object_attributes");
@@ -127,6 +142,52 @@ public class GitLabPipelineRun extends Run<GitLabPipelineJob,GitLabPipelineRun> 
         String details_status = (String)jsonObjAttrs.get("detailed_status");
         Result newResult = result;
 
+        if (listener == null) {
+            LOGGER.log(Level.INFO, "Creating a listener");
+            Computer computer = Computer.currentComputer();
+            Charset charset = null;
+            if (computer != null) {
+                charset = computer.getDefaultCharset();
+                this.charset = charset.name();
+            }
+
+            // don't do buffering so that what's written to the listener
+            // gets reflected to the file immediately, which can then be
+            // served to the browser immediately
+            OutputStream logger = new FileOutputStream(getLogFile());
+            // RunT build = job.getBuild();
+
+            // ## PDS Dummy out for now.
+            // // Global log filters
+            // for (ConsoleLogFilter filter : ConsoleLogFilter.all()) {
+            //     logger = filter.decorateLogger((AbstractBuild) this, logger);
+            // }
+            // 
+            // // Project specific log filters
+            // if (project instanceof BuildableItemWithBuildWrappers && this instanceof AbstractBuild) {
+            //     BuildableItemWithBuildWrappers biwbw = (BuildableItemWithBuildWrappers) project;
+            //     for (BuildWrapper bw : biwbw.getBuildWrappersList()) {
+            //         logger = bw.decorateLogger((AbstractBuild) this, logger);
+            //     }
+            // }
+
+            listener = new StreamBuildListener(logger,charset);
+
+            listener.started(getCauses());
+
+            Authentication auth = Jenkins.getAuthentication();
+            if (!auth.equals(ACL.SYSTEM)) {
+                String name = auth.getName();
+                if (!auth.equals(Jenkins.ANONYMOUS)) {
+                    name = ModelHyperlinkNote.encodeTo(User.get(name));
+                }
+                listener.getLogger().println(Messages.Run_running_as_(name));
+            }
+
+            RunListener.fireStarted(this,listener);
+
+            updateSymlinks(listener);
+        }
 
         // ##TEST What happens if we restart a completed build?
         // ##PDS What is we never see the endpoint? We need a configurable
@@ -202,6 +263,22 @@ public class GitLabPipelineRun extends Run<GitLabPipelineJob,GitLabPipelineRun> 
             long end = System.currentTimeMillis();
             duration = Math.max(end - getStartTimeInMillis(), 0);
 
+            if (listener != null) {
+                LOGGER.log(Level.INFO, "Saving the listener");
+                RunListener.fireCompleted(this,listener);
+                // ## PDS No need for this.
+                //try {
+                //    project.cleanUp(listener);
+                //} catch (Exception e) {
+                    // ##PDS Need to do something!
+                    // handleFatalBuildProblem(listener,e);
+                    // too late to update the result now
+                    //continue;
+                //}
+                listener.finished(newResult);
+                listener.closeQuietly();
+            }
+
             /* 
              * Save the build record otherwise future builds won't find this
              * build and won't be able to figure out estimated completion
@@ -209,12 +286,22 @@ public class GitLabPipelineRun extends Run<GitLabPipelineJob,GitLabPipelineRun> 
              */
             try {
                     save();
+                    // listener.onCompleted(listener);
                 } catch (IOException e) {
                     LOGGER.log(Level.SEVERE, "Failed to save build record",e);
                 } 
+                
             LOGGER.log(Level.INFO,
                 "Build started at: " + getStartTimeInMillis());
             LOGGER.log(Level.INFO, "Build duration: " + duration);
+
+            try {
+                getParent().logRotate();
+            } catch (IOException e) {
+                LOGGER.log(Level.SEVERE, "Failed to rotate log",e);
+            } catch (InterruptedException e) {
+                LOGGER.log(Level.SEVERE, "Failed to rotate log",e);
+            }
             onEndBuilding();
         }
     }
@@ -296,5 +383,29 @@ public class GitLabPipelineRun extends Run<GitLabPipelineJob,GitLabPipelineRun> 
             // if no ETA is available, a build taking longer than a day is considered stuck
             return TimeUnit2.MILLISECONDS.toHours(elapsed) > 24;
         }
+    }
+
+    /**
+     * Computes a human-readable text that shows the expected remaining time
+     * until the build completes.
+     */
+    public String getEstimatedRemainingTime() {
+        long d;
+        lock.readLock().lock();
+        try {
+            d = project.getEstimatedDuration();
+        } finally {
+            lock.readLock().unlock();
+        }
+        if (d < 0) {
+            return Messages.Executor_NotAvailable();
+        }
+
+        long eta = d - getElapsedTime();
+        if (eta <= 0) {
+            return Messages.Executor_NotAvailable();
+        }
+
+        return Util.getTimeSpanString(eta);
     }
 }

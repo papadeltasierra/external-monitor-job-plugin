@@ -67,7 +67,7 @@ public class GitLabWebhookPipeline extends GitLabWebhook {
     private static final Logger LOGGER = Logger.getLogger( GitLabPipelineRun.class.getName() );
 
     public void process(StaplerRequest req) 
-    		throws IOException, JSONObjectException, ServletException {
+    		throws IOException, JSONObjectException, ServletException, InterruptedException {
         Map<String, Object> pipeline = parseJsonRequest(req);
 
         // ##TEST Bad Json, all missnig fields..

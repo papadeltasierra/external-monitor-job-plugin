@@ -79,7 +79,7 @@ public class GitLab implements RootAction, StaplerProxy {
     }
 
     public void doPipeline(StaplerRequest req, StaplerResponse rsp)
-            throws ServletException, IOException {
+            throws ServletException, IOException, InterruptedException {
 
         LOGGER.log(Level.INFO, "Handling Pipeline event");        
         // ##PDS Try responding imediately here!
