@@ -86,7 +86,7 @@ public class GitLabPipelineRun extends Run<GitLabPipelineJob,GitLabPipelineRun> 
 
     private String commit;
     //##PDS Do we need this?
-    private transient Executor executor = null;
+    private transient Executor executor;
     private transient StreamBuildListener listener;
     /* 
      * Hook the delete method and make sure that we remove ourselves from the
@@ -313,8 +313,9 @@ public class GitLabPipelineRun extends Run<GitLabPipelineJob,GitLabPipelineRun> 
     }
 
     public @CheckForNull Executor getExecutor() {
-        //return executor;
-        return null;
+        // LOGGER.log(Level.INFO, "Executor: " + executor.toString());
+        return executor;
+        //return null;
     }
 
     /*************************************************************************

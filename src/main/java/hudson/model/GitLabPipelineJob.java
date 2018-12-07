@@ -41,6 +41,7 @@ import java.util.HashMap;
 import java.util.ArrayList;
 import java.util.List;
 import javax.annotation.CheckForNull;
+import jenkins.model.lazy.LazyBuildMixIn;
 
 //##PDS debug only
 import hudson.model.PermalinkProjectAction.Permalink;
@@ -54,7 +55,7 @@ import java.lang.Integer;
  *
  * @author Kohsuke Kawaguchi
  */
-public class GitLabPipelineJob extends ViewJob<GitLabPipelineJob,GitLabPipelineRun> implements TopLevelItem {
+public class GitLabPipelineJob extends ViewJob<GitLabPipelineJob,GitLabPipelineRun> implements TopLevelItem,  LazyBuildMixIn.LazyLoadingJob<GitLabPipelineJob,GitLabPipelineRun> {
 //public class GitLabPipelineJob extends Job<GitLabPipelineJob,GitLabPipelineRun> implements TopLevelItem {
 
     private static final Logger LOGGER = Logger.getLogger( GitLabPipelineRun.class.getName() );
@@ -64,6 +65,18 @@ public class GitLabPipelineJob extends ViewJob<GitLabPipelineJob,GitLabPipelineR
      */
     // ##PDS accessors to add/delete us?
     public Map<String, GitLabPipelineRun> commitMap;
+
+    private transient LazyBuildMixIn<GitLabPipelineJob,GitLabPipelineRun> buildMixIn;
+
+    /**
+     * All the builds keyed by their build number.
+     * Kept here for binary compatibility only; otherwise use {@link #buildMixIn}.
+     * External code should use {@link #getBuildByNumber(int)} or {@link #getLastBuild()} and traverse via
+     * {@link Run#getPreviousBuild()}
+     */
+    // @Restricted(NoExternalUse.class)
+    protected transient RunMap<GitLabPipelineRun> builds;
+
 
     /*
      * Although we don't truly execute anything, we need to have a fake
@@ -83,6 +96,8 @@ public class GitLabPipelineJob extends ViewJob<GitLabPipelineJob,GitLabPipelineR
     @Deprecated
     protected GitLabPipelineJob(Jenkins parent, String name) {
         super(parent,name);
+        buildMixIn = createBuildMixIn();
+        builds = buildMixIn.getRunMap();
         LOGGER.log(Level.INFO, "Creating commitMap");
         commitMap = new HashMap();
         LOGGER.log(Level.INFO, "this: " + this.toString());
@@ -91,29 +106,13 @@ public class GitLabPipelineJob extends ViewJob<GitLabPipelineJob,GitLabPipelineR
 
     public GitLabPipelineJob(ItemGroup parent, String name) {
         super(parent, name);
+        buildMixIn = createBuildMixIn();
+        builds = buildMixIn.getRunMap();
         LOGGER.log(Level.INFO, "Creating commitMap");
         commitMap = new HashMap();
         LOGGER.log(Level.INFO, "this: " + this.toString());
         LOGGER.log(Level.INFO, "commitMap: " + commitMap.toString());
     }
-
-    // ##PDS Debugging.
-    //    @Exported
-    //@QuickSilver
-    public GitLabPipelineRun  getLastSuccessfulBuild() {
-        //return (RunT)Permalink.LAST_SUCCESSFUL_BUILD.resolve(this);
-        GitLabPipelineRun run = (GitLabPipelineRun)Permalink.LAST_BUILD.resolve(this);
-        if (run == null) {
-            LOGGER.log(Level.INFO, "last_build: " + run.toString());
-            LOGGER.log(Level.INFO, "isBuilding: " + (new Boolean(run.isBuilding())).toString());
-            LOGGER.log(Level.INFO, "getResult: " + run.getResult().toString());
-            LOGGER.log(Level.INFO, "isBetter: " + (new Boolean(run.getResult().isBetterOrEqualTo(Result.UNSTABLE))).toString());
-        } else {
-            LOGGER.log(Level.INFO, "!!! last run not found");
-        }
-        return run;
-    }
-
 
     /* ##PDS
      * We will want to extend this if we allow a back-channel to cancel
@@ -138,7 +137,7 @@ public class GitLabPipelineJob extends ViewJob<GitLabPipelineJob,GitLabPipelineR
         if (run == null) {
             // Get a new run.
             LOGGER.log(Level.INFO, "Create a new run");
-            run = new GitLabPipelineRun(this, commit);
+            run = buildMixIn.newBuild();
             /* 
              * These update internal state and add the new run into the list
              * of runs that are visible on the dashboards.
@@ -187,6 +186,25 @@ public class GitLabPipelineJob extends ViewJob<GitLabPipelineJob,GitLabPipelineR
         return AlternativeUiTextProvider.get(PRONOUN, this, Messages.GitLabPipelineJob_DisplayName());
     }
 
+    // ##PDS Debugging.
+    //    @Exported
+    //@QuickSilver
+    //##PDS have to fix this.
+    public GitLabPipelineRun  getLastSuccessfulBuild() {
+        //return (RunT)Permalink.LAST_SUCCESSFUL_BUILD.resolve(this);
+        GitLabPipelineRun run = (GitLabPipelineRun)Permalink.LAST_BUILD.resolve(this);
+        if (run == null) {
+            LOGGER.log(Level.INFO, "last_build: " + run.toString());
+            LOGGER.log(Level.INFO, "isBuilding: " + (new Boolean(run.isBuilding())).toString());
+            LOGGER.log(Level.INFO, "getResult: " + run.getResult().toString());
+            LOGGER.log(Level.INFO, "isBetter: " + (new Boolean(run.getResult().isBetterOrEqualTo(Result.UNSTABLE))).toString());
+        } else {
+            LOGGER.log(Level.INFO, "!!! last run not found");
+        }
+        return run;
+    }
+
+
     // ##PDS DEBUGGING - Called from Run...
     /*
      * We cannot use the inherited implementation of getEstimatedduration
@@ -213,6 +231,10 @@ public class GitLabPipelineJob extends ViewJob<GitLabPipelineJob,GitLabPipelineR
         if (r != null) {
             lastBuildNumber = r.getNumber();
             do {
+                LOGGER.log(Level.INFO, "Checking: " + r.getNumber());
+                LOGGER.log(Level.INFO, "isBuilding: " + r.isBuilding());
+                LOGGER.log(Level.INFO, "result: " + r.getResult());
+                LOGGER.log(Level.INFO, "Checking one...");
                 if (!r.isBuilding() && r.getResult() != null) {
                     Result result = r.getResult();
                     if (result.isBetterOrEqualTo(Result.UNSTABLE)) {
@@ -225,6 +247,8 @@ public class GitLabPipelineJob extends ViewJob<GitLabPipelineJob,GitLabPipelineR
                 }
                 i++;
                 r = r.getPreviousBuild();
+                LOGGER.log(Level.INFO, "Previous: " + r);
+
             } while (r != null && r.getNumber() != lastBuildNumber && candidates.size() < 3 && i < 6);
         }
         
@@ -240,6 +264,7 @@ public class GitLabPipelineJob extends ViewJob<GitLabPipelineJob,GitLabPipelineR
     }
     
     public long getEstimatedDuration() {
+        LOGGER.log(Level.INFO, "getEstimatedDuration()");
         List<GitLabPipelineRun> builds = getEstimatedDurationCandidates();
         
         if(builds.isEmpty())     return -1;
