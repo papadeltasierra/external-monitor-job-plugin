@@ -28,7 +28,6 @@ package hudson.model;
 //import hudson.util.DualOutputStream;
 //import org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement;
 
-import com.fasterxml.jackson.jr.ob.JSON;
 import com.fasterxml.jackson.jr.ob.JSONObjectException;
 import java.io.IOException;
 //import javax.xml.stream.XMLInputFactory;
@@ -50,11 +49,6 @@ import org.kohsuke.stapler.StaplerRequest;
 import java.lang.Object;
 import java.lang.String;
 
-
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-
-import static javax.xml.stream.XMLStreamConstants.*;
-
 // ## Where are we capturng failures?
 
 /**
@@ -66,6 +60,7 @@ public class GitLabWebhookPipeline extends GitLabWebhook {
 
     private static final Logger LOGGER = Logger.getLogger( GitLabPipelineRun.class.getName() );
 
+  
     public void process(StaplerRequest req) 
     		throws IOException, JSONObjectException, ServletException, InterruptedException {
         Map<String, Object> pipeline = parseJsonRequest(req);
@@ -81,12 +76,12 @@ public class GitLabWebhookPipeline extends GitLabWebhook {
             LOGGER.log(Level.INFO, "Really pipeline event");
             // ##PDS Make all these string attribute names into a enum/class.
             // The ref is either 'master' or a branch name.
-            Map<String, Object> jsonProject =
-                (Map<String, Object>)pipeline.get("project");
+            Map<?, ?> jsonProject =
+                (Map<?, ?>)pipeline.get("project");
             String name = (String)jsonProject.get("name");
 
-            Map<String, Object> jsonObjAttrs =
-                (Map<String, Object>)pipeline.get("object_attributes");
+            Map<?, ?> jsonObjAttrs =
+                (Map<?, ?>)pipeline.get("object_attributes");
             String ref = (String)jsonObjAttrs.get("ref");
 
             LOGGER.log(Level.INFO, "GitLab Project name: " + name);
@@ -108,7 +103,7 @@ public class GitLabWebhookPipeline extends GitLabWebhook {
              * can give up and go home.
              */
             // TEST - No matching name, wrong Job type.
-            Job gitLabPipelineJob = (Job)Jenkins.getInstance().getItem(project);
+            GitLabPipelineJob gitLabPipelineJob = (GitLabPipelineJob)Jenkins.getInstance().getItem(project);
             if (gitLabPipelineJob instanceof GitLabPipelineJob) {
                 LOGGER.log(Level.INFO, "Found a pipeline job");
                 GitLabPipelineJob glpj = (GitLabPipelineJob)gitLabPipelineJob;

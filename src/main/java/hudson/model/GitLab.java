@@ -24,12 +24,10 @@
 package hudson.model;
 
 import hudson.Extension;
-import hudson.ExtensionPoint;
 //import hudson.model.RunMap.Constructor;
 //import hudson.util.AlternativeUiTextProvider;
 //import java.io.File;
 import java.io.IOException;
-import javax.servlet.FilterChain;
 import javax.servlet.ServletException;
 import java.util.logging.Logger;
 import java.util.logging.Level;
@@ -50,10 +48,8 @@ public class GitLab implements RootAction, StaplerProxy {
 
     private static final Logger LOGGER = Logger.getLogger( GitLab.class.getName() );
 
-    private static final String URL_NAME="gitlab";
-
     // ##PDS just a hook for logging.
-    void GitLab() {
+    public GitLab() {
         LOGGER.setLevel(Level.INFO);
     }
 

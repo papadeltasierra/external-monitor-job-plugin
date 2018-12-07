@@ -23,49 +23,26 @@
  */
 package hudson.model;
 
-import hudson.Proc;
 import hudson.Util;
 import hudson.console.*;
-import hudson.util.DecodingStream;
-import hudson.util.DualOutputStream;
-// import hudson.model.listeners.RunListener;
-import jenkins.model.PeepholePermalink.RunListenerImpl;
-import jenkins.model.PeepholePermalink;
-import hudson.model.queue.Executables;
 import hudson.security.ACL;
 import hudson.util.TimeUnit2;
-import org.codehaus.mojo.animal_sniffer.IgnoreJRERequirement;
 import jenkins.model.Jenkins;
 
-import com.fasterxml.jackson.jr.ob.JSON;
-import com.fasterxml.jackson.jr.ob.JSONObjectException;
-//import javax.xml.stream.XMLInputFactory;
-//import javax.xml.stream.XMLStreamException;
-//import javax.xml.stream.XMLStreamReader;
 import java.io.File;
 import java.io.IOException;
-import java.io.PrintStream;
-import java.io.InputStream;
 import java.io.OutputStream;
 import java.io.FileOutputStream;
 import java.io.FileNotFoundException;
-import java.io.Reader;
 import java.nio.charset.Charset;
-import java.util.zip.GZIPInputStream;
 import java.util.Map;
 import java.util.logging.Logger;
 import java.util.logging.Level;
-import javax.annotation.Nonnull;
 import javax.annotation.CheckForNull;
 import java.util.concurrent.locks.ReadWriteLock;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
-import org.kohsuke.stapler.*;
 import org.kohsuke.stapler.export.Exported;
 import org.acegisecurity.Authentication;
-
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-
-import static javax.xml.stream.XMLStreamConstants.*;
 
 
 /**
@@ -73,7 +50,9 @@ import static javax.xml.stream.XMLStreamConstants.*;
  * 
  * @author Kohsuke Kawaguchi
  */
-public class GitLabPipelineRun extends Run<GitLabPipelineJob,GitLabPipelineRun> {
+//##PDS Suggest renaming to build.
+public class GitLabPipelineRun extends Build<GitLabPipelineJob,GitLabPipelineRun> {
+//public class GitLabPipelineRun extends Run<GitLabPipelineJob,GitLabPipelineRun> {
 //public class GitLabPipelineRun extends PeepholePermalink.RunListenerImpl {
     /**
      * Loads a run from a log file.
@@ -140,7 +119,7 @@ public class GitLabPipelineRun extends Run<GitLabPipelineJob,GitLabPipelineRun> 
             throws FileNotFoundException, InterruptedException {
         //## TEST status / details_status d not exist.
         LOGGER.log(Level.INFO, "Process status change");
-        Map<String, Object> jsonObjAttrs = (Map<String, Object>)jsonReq.get("object_attributes");
+        Map<?, ?> jsonObjAttrs = (Map<?, ?>)jsonReq.get("object_attributes");
         String status = (String)jsonObjAttrs.get("status");
         String detailed_status = (String)jsonObjAttrs.get("detailed_status");
         Result newResult = result;

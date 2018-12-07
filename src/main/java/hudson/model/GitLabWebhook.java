@@ -45,10 +45,6 @@ import java.util.logging.Level;
 import org.kohsuke.stapler.StaplerRequest;
 
 
-import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-
-import static javax.xml.stream.XMLStreamConstants.*;
-
 /**
  * {@link Run} for {@link GitLabPipelineJob}.
  * 

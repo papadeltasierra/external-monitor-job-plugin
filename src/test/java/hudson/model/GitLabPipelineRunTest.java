@@ -3,12 +3,10 @@ package hudson.model;
 import hudson.EnvVars;
 import hudson.util.StreamTaskListener;
 import jenkins.model.Jenkins;
-import org.junit.Assert;
 import org.jvnet.hudson.test.Bug;
 import org.jvnet.hudson.test.HudsonTestCase;
 
 import java.io.IOException;
-import java.io.StringReader;
 
 /**
  * @author Kohsuke Kawaguchi
@@ -17,18 +15,22 @@ public class GitLabPipelineRunTest extends HudsonTestCase {
     public void test1() throws Exception {
         GitLabPipelineJob p = hudson.createProject(GitLabPipelineJob.class, "test");
         GitLabPipelineRun b = p.newBuild();
+        /* ##PDS
         b.acceptRemoteSubmission(new StringReader(
             //"<run><log content-encoding='UTF-8'>AAAAAAAA</log><result>0</result><duration>100</duration></run>"
             "{\"run\": {\"log content-encoding='UTF-8'\":\"AAAAAAAA\"},\"result\":0,\"duration\":100}"
         ));
+        */
         assertEquals(b.getResult(),Result.SUCCESS);
         assertEquals(b.getDuration(),100);
 
         b = p.newBuild();
+        /* ##PDS
         b.acceptRemoteSubmission(new StringReader(
             //"<run><log content-encoding='UTF-8'>AAAAAAAA</log><result>1</result>"
             "{\"run\":{\"log content-encoding='UTF-8'\":\"AAAAAAAA\"},\"result\":1}"
         ));
+        */
         assertEquals(b.getResult(),Result.FAILURE);
     }
 
@@ -36,10 +38,12 @@ public class GitLabPipelineRunTest extends HudsonTestCase {
     public void testGitLabPipelineJob() throws Exception {
         GitLabPipelineJob p = jenkins.createProject(GitLabPipelineJob.class, createUniqueProjectName());
         GitLabPipelineRun b = p.newBuild();
+        /* ##PDS
         b.acceptRemoteSubmission(new StringReader(
             //"<run><log content-encoding='UTF-8'></log><result>0</result><duration>1</duration></run>"
             "{\"run\":\"log content-encoding='UTF-8'\",\"result\":0},\"duration\":1}"
         ));
+        */
 
         assertGetEnvironmentWorks(b);
     }
