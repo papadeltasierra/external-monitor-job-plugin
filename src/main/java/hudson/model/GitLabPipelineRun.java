@@ -28,7 +28,8 @@ import hudson.Util;
 import hudson.console.*;
 import hudson.util.DecodingStream;
 import hudson.util.DualOutputStream;
-import hudson.model.listeners.RunListener;
+// import hudson.model.listeners.RunListener;
+import jenkins.model.PeepholePermalink.RunListenerImpl;
 import jenkins.model.PeepholePermalink;
 import hudson.model.queue.Executables;
 import hudson.security.ACL;
@@ -66,6 +67,7 @@ import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
 
 import static javax.xml.stream.XMLStreamConstants.*;
 
+
 /**
  * {@link Run} for {@link GitLabPipelineJob}.
  * 
@@ -83,7 +85,8 @@ public class GitLabPipelineRun extends Run<GitLabPipelineJob,GitLabPipelineRun> 
     private final ReadWriteLock lock = new ReentrantReadWriteLock();
 
     private String commit;
-    private transient Executor executor;
+    //##PDS Do we need this?
+    private transient Executor executor = null;
     private transient StreamBuildListener listener;
     /* 
      * Hook the delete method and make sure that we remove ourselves from the
@@ -139,7 +142,7 @@ public class GitLabPipelineRun extends Run<GitLabPipelineJob,GitLabPipelineRun> 
         LOGGER.log(Level.INFO, "Process status change");
         Map<String, Object> jsonObjAttrs = (Map<String, Object>)jsonReq.get("object_attributes");
         String status = (String)jsonObjAttrs.get("status");
-        String details_status = (String)jsonObjAttrs.get("detailed_status");
+        String detailed_status = (String)jsonObjAttrs.get("detailed_status");
         Result newResult = result;
 
         if (listener == null) {
@@ -184,7 +187,9 @@ public class GitLabPipelineRun extends Run<GitLabPipelineJob,GitLabPipelineRun> 
                 listener.getLogger().println(Messages.Run_running_as_(name));
             }
 
-            RunListener.fireStarted(this,listener);
+            // ##PDS were using RunLister.fireStarted().  how might we have multiple
+            // listeners?
+            // listener.onStarted(this,listener);
 
             updateSymlinks(listener);
         }
@@ -231,7 +236,7 @@ public class GitLabPipelineRun extends Run<GitLabPipelineJob,GitLabPipelineRun> 
         } else if (status.equals(GitLabStatus.SUCCESS)) {
             LOGGER.log(Level.INFO, "Success");
             newResult = Result.SUCCESS;
-            if (details_status.equals(GitLabStatus.SUCCESS_WARNING)) {
+            if (detailed_status.equals(GitLabStatus.SUCCESS_WARNING)) {
                 LOGGER.log(Level.INFO, "...with warnings!");
                 newResult = Result.UNSTABLE;
             }
@@ -265,7 +270,8 @@ public class GitLabPipelineRun extends Run<GitLabPipelineJob,GitLabPipelineRun> 
 
             if (listener != null) {
                 LOGGER.log(Level.INFO, "Saving the listener");
-                RunListener.fireCompleted(this,listener);
+                // RunListener.fireCompleted(this,listener);
+                // listener.onCompleted(this,listener);
                 // ## PDS No need for this.
                 //try {
                 //    project.cleanUp(listener);
@@ -286,7 +292,7 @@ public class GitLabPipelineRun extends Run<GitLabPipelineJob,GitLabPipelineRun> 
              */
             try {
                     save();
-                    // listener.onCompleted(listener);
+                    //listener.onCompleted(listener);
                 } catch (IOException e) {
                     LOGGER.log(Level.SEVERE, "Failed to save build record",e);
                 } 
@@ -307,7 +313,8 @@ public class GitLabPipelineRun extends Run<GitLabPipelineJob,GitLabPipelineRun> 
     }
 
     public @CheckForNull Executor getExecutor() {
-        return executor;
+        //return executor;
+        return null;
     }
 
     /*************************************************************************
@@ -340,10 +347,12 @@ public class GitLabPipelineRun extends Run<GitLabPipelineJob,GitLabPipelineRun> 
      */
     @Exported
     public int getProgress() {
+        LOGGER.log(Level.INFO, "getProgress()");
         long d;
         lock.readLock().lock();
         try {
             d = project.getEstimatedDuration();
+            LOGGER.log(Level.INFO, "gED returns: " + d);
         } finally {
             lock.readLock().unlock();
         }

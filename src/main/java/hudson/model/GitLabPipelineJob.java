@@ -38,7 +38,14 @@ import java.util.logging.Logger;
 import java.util.logging.Level;
 import java.util.Map;
 import java.util.HashMap;
+import java.util.ArrayList;
+import java.util.List;
 import javax.annotation.CheckForNull;
+
+//##PDS debug only
+import hudson.model.PermalinkProjectAction.Permalink;
+import java.lang.Boolean;
+import java.lang.Integer;
 
 /**
  * Job that runs outside Hudson whose result is submitted to Hudson
@@ -88,6 +95,23 @@ public class GitLabPipelineJob extends ViewJob<GitLabPipelineJob,GitLabPipelineR
         commitMap = new HashMap();
         LOGGER.log(Level.INFO, "this: " + this.toString());
         LOGGER.log(Level.INFO, "commitMap: " + commitMap.toString());
+    }
+
+    // ##PDS Debugging.
+    //    @Exported
+    //@QuickSilver
+    public GitLabPipelineRun  getLastSuccessfulBuild() {
+        //return (RunT)Permalink.LAST_SUCCESSFUL_BUILD.resolve(this);
+        GitLabPipelineRun run = (GitLabPipelineRun)Permalink.LAST_BUILD.resolve(this);
+        if (run == null) {
+            LOGGER.log(Level.INFO, "last_build: " + run.toString());
+            LOGGER.log(Level.INFO, "isBuilding: " + (new Boolean(run.isBuilding())).toString());
+            LOGGER.log(Level.INFO, "getResult: " + run.getResult().toString());
+            LOGGER.log(Level.INFO, "isBetter: " + (new Boolean(run.getResult().isBetterOrEqualTo(Result.UNSTABLE))).toString());
+        } else {
+            LOGGER.log(Level.INFO, "!!! last run not found");
+        }
+        return run;
     }
 
 
@@ -164,13 +188,72 @@ public class GitLabPipelineJob extends ViewJob<GitLabPipelineJob,GitLabPipelineR
     }
 
     // ##PDS DEBUGGING - Called from Run...
-    public long getEstimatedDuration() {
-        long duration = super.getEstimatedDuration();
+    /*
+     * We cannot use the inherited implementation of getEstimatedduration
+     * because this is tightly integrated with PERMALINKS and RunListeners
+     * and these come with far too much baggage.  So we have to duplicate
+     * that code here but done in a 'slow way' of just walking back through
+     * previous builds.
+     *
+     * Returns candidate build for calculating the estimated duration of the current run.
+     * 
+     * Returns the 3 last successful (stable or unstable) builds, if there are any.
+     * Failing to find 3 of those, it will return up to 3 last unsuccessful builds.
+     * 
+     * In any case it will not go more than 6 builds into the past to avoid costly build loading.
+     */
+    @SuppressWarnings("unchecked")
+    protected List<GitLabPipelineRun> getEstimatedDurationCandidates() {
 
-        LOGGER.log(Level.INFO, "*** [Job] Estimated duration: " + duration);
+        int i = 0;
+        int lastBuildNumber = -1;
+        GitLabPipelineRun r = getLastBuild();       
+        List<GitLabPipelineRun> candidates = new ArrayList<GitLabPipelineRun>(3);
+        List<GitLabPipelineRun> fallbackCandidates = new ArrayList<GitLabPipelineRun>(3);
+        if (r != null) {
+            lastBuildNumber = r.getNumber();
+            do {
+                if (!r.isBuilding() && r.getResult() != null) {
+                    Result result = r.getResult();
+                    if (result.isBetterOrEqualTo(Result.UNSTABLE)) {
+                        LOGGER.log(Level.INFO, "Good one");
+                        candidates.add(r);
+                    } else if (result.isCompleteBuild()) {
+                        LOGGER.log(Level.INFO, "Fallback");
+                        fallbackCandidates.add(r);
+                    }
+                }
+                i++;
+                r = r.getPreviousBuild();
+            } while (r != null && r.getNumber() != lastBuildNumber && candidates.size() < 3 && i < 6);
+        }
+        
+        while (candidates.size() < 3) {
+            if (fallbackCandidates.isEmpty())
+                break;
+            GitLabPipelineRun run = fallbackCandidates.remove(0);
+            candidates.add(run);
+        }
+        LOGGER.log(Level.INFO, "# of candidates: " + candidates.size());
 
-        return duration;
+        return candidates;
     }
+    
+    public long getEstimatedDuration() {
+        List<GitLabPipelineRun> builds = getEstimatedDurationCandidates();
+        
+        if(builds.isEmpty())     return -1;
+
+        long totalDuration = 0;
+        for (GitLabPipelineRun b : builds) {
+            totalDuration += b.getDuration();
+        }
+        if(totalDuration==0) return -1;
+
+        return Math.round((double)totalDuration / builds.size());
+    }
+
+
 
     // ##PDS Can we delete using HTTP etc?  If so then we need to configure...
     //       - GitLab job ID (or name/branch)
